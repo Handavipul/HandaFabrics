@@ -28,7 +28,6 @@ export class ShippingDetailsComponent implements OnInit {
   ngOnInit() {}
 
   updateUserDetails(form: NgForm) {
-  debugger
     const data = form.value;
     data["emailId"] = this.userDetails.emailId;
     data["userName"] = this.userDetails.userName;
