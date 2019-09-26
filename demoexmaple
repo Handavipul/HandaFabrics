@@ -1,0 +1,209 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace csvReader
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        // string pth = @"C:\Users\Vipul\Desktop\sampletest.csv";
+        string pth = @"C:\Users\Vipul\Desktop\OutHeader.csv";
+
+        public class CsvRow : List<string>
+        {
+            public string LineText { get; set; }
+        }
+
+
+        public class CsvFileReader : StreamReader
+        {
+            public CsvFileReader(Stream stream)
+                : base(stream)
+            {
+            }
+
+            public CsvFileReader(string filename)
+                : base(filename)
+            {
+            }
+
+            public bool ReadRow(CsvRow row, char separator)
+            {
+                try
+                {
+                    row.LineText = ReadLine();
+                    if (String.IsNullOrEmpty(row.LineText))
+                        return false;
+
+                    int pos = 0;
+                    int rows = 0;
+
+                    while (pos < row.LineText.Length)
+                    {
+                        string value;
+
+                        // Special handling for quoted field
+                        if (row.LineText[pos] == '"')
+                        {
+                            // Skip initial quote
+                            pos++;
+
+                            // Parse quoted value
+                            int start = pos;
+                            while (pos < row.LineText.Length)
+                            {
+                                // Test for quote character
+                                if (row.LineText[pos] == '"')
+                                {
+                                    // Found one
+                                    pos++;
+
+                                    // If two quotes together, keep one
+                                    // Otherwise, indicates end of value
+                                    if (pos >= row.LineText.Length || row.LineText[pos] != '"')
+                                    {
+                                        pos--;
+                                        break;
+                                    }
+                                }
+                                pos++;
+                            }
+                            value = row.LineText.Substring(start, pos - start);
+                            value = value.Replace("\"\"", "\"");
+                        }
+                        else
+                        {
+                            // Parse unquoted value
+                            int start = pos;
+                            while (pos < row.LineText.Length && row.LineText[pos] != separator)
+                                pos++;
+                            value = row.LineText.Substring(start, pos - start);
+                        }
+
+                        // Add field to list
+                        if (rows < row.Count)
+                            row[rows] = value;
+                        else
+                            row.Add(value);
+                        rows++;
+
+                        // Eat up to and including next comma
+                        while (pos < row.LineText.Length && row.LineText[pos] != separator)
+                            pos++;
+                        if (pos < row.LineText.Length)
+                            pos++;
+                    }
+                    // Delete any unused items
+                    while (row.Count > rows)
+                        row.RemoveAt(rows);
+
+                    // Return true if any columns read
+                    return (row.Count > 0);
+                }
+                catch (Exception ex)
+                {
+                    ex.ToString();
+                    throw;
+                }
+            }
+        }
+
+        public class MyMappedCSVFile
+        {
+            public string path { get; set; }
+            public MyMappedCSVFile() { }
+
+            public MyMappedCSVFile(string profile, string date)
+            {
+                path = profile;
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+          
+
+              BindData(pth);
+
+              //BindData();
+        }
+
+
+        private void BindData(string filePath)
+        {
+            DataTable dt = new DataTable();
+            string[] lines = System.IO.File.ReadAllLines(filePath);
+            if (lines.Length > 0)
+            {
+                //first line to create header
+                string firstLine = lines[0];
+                string[] headerLabels = firstLine.Split(',');
+                foreach (string headerWord in headerLabels)
+                {
+                    dt.Columns.Add(new DataColumn(headerWord));
+                }
+                //For Data
+                for (int i = 1; i < lines.Length; i++)
+                {
+                    string[] dataWords = lines[i].Split(',');
+                    DataRow dr = dt.NewRow();
+                    int columnIndex = 0;
+                    foreach (string headerWord in headerLabels)
+                    {
+                        dr[headerWord] = dataWords[columnIndex++];
+                    }
+                    dt.Rows.Add(dr);
+                }
+            }
+            if (dt.Rows.Count > 0)
+            {
+                dataGridView1.DataSource = dt;
+            }
+
+        }
+
+        private void dataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            bool hasHeader=true;
+
+            using (CsvFileReader reader = new CsvFileReader(pth))
+            {
+                char separator = ','; //CSV file separated by (in this case it is semicolon)
+                List<MyMappedCSVFile> lst = new List<MyMappedCSVFile>();
+                CsvRow row = new CsvRow();
+                if (hasHeader)
+                {
+                    string redr = reader.ReadLine();
+                }
+                while (reader.ReadRow(row, separator))
+                {
+
+                    if (row[0].Equals("TransactionID")) //to skip header
+                        continue;
+                    else
+                    {
+                        MyMappedCSVFile obj = new MyMappedCSVFile();
+                        obj.path = row[e.ColumnIndex]; //Column Index of ProfileID
+                        lst.Add(obj);
+                    }
+                }
+               
+            }
+        }
+
+
+
+    }
+}
